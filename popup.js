@@ -21,7 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Reload the YouTube page to apply changes
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                    chrome.tabs.reload(tabs[0].id);
+                    if (tabs[0]?.id) {
+                        chrome.tabs.sendMessage(
+                            tabs[0].id, 
+                            { action: "toggleImages" }
+                        );
+                    }
                 });
             });
         });

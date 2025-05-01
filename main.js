@@ -1,12 +1,13 @@
 (() => {
     const numImages = 102;
+    let overlayEnabled = true;
 
     // See whether overlays are even enabled
     chrome.storage.local.get(['overlayEnabled'], (result) => {
         //result is an object that contains the data retrieved from chrome.storage.local.get
         //overlayEnabled is an attribute of result
-        const enabled = result.overlayEnabled !== false; // default to true if not set
-        const opacity = enabled ? '1' : '0';
+        overlayEnabled = result.overlayEnabled !== false; // default to true if not set
+        const opacity = overlayEnabled ? '1' : '0';
 
         // get all yt thumbnails
         function getThumbnails() {
@@ -35,6 +36,7 @@
             overlay.style.width = overlay.style.height = "100%";
             overlay.style.zIndex = "0";
             overlay.style.opacity = opacity; // Apply the opacity here
+            overlay.dataset.kumifyOverlay = "true";
             // Overlay is appended as a child of the original image's parent element (the thing we did query select), making it go on top
             thumbnail.parentElement.appendChild(overlay);
             thumbnail.dataset.overlayApplied = "true";
@@ -49,6 +51,24 @@
         function getOverlayUrl(index) {
             return chrome.runtime.getURL(`assets/images/${index}.PNG`);
         }
+        
+        // Listen for toggle messages
+        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            if (message.action === "toggleImages") {
+                // Toggle the state
+                overlayEnabled = !overlayEnabled;
+                
+                // Update storage
+                chrome.storage.local.set({ overlayEnabled });
+                
+                // Update existing overlays
+                toggleExistingOverlays(overlayEnabled);
+                
+                // Send response to confirm action was performed
+                sendResponse({ success: true, newState: overlayEnabled });
+                return true; // Keep the message channel open for sendResponse
+            }
+        });
 
         // Observe the entire body of the document for changes
         const observer = new MutationObserver(() => {
@@ -63,4 +83,13 @@
         // Initial call to set thumbnails on page load
         getThumbnails();
     });
+    
+    
+    // Add function to toggle existing overlays
+    function toggleExistingOverlays(enabled) {
+        const overlays = document.querySelectorAll('img[data-kumify-overlay="true"]');
+        overlays.forEach(overlay => {
+            overlay.style.opacity = enabled ? '1' : '0';
+        });
+    }
 })();
